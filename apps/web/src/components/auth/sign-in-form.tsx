@@ -25,7 +25,9 @@ export function SignInForm() {
     parseAsString.withDefault(env.NEXT_PUBLIC_APP_URL)
   )
   const { data: session, isPending } = authClient.useSession()
+  const [isEmailSignInPending, setIsEmailSignInPending] = useState(false)
   const [isSocialSignInPending, setIsSocialSignInPending] = useState(false)
+  const isEmailSignInPendingRef = useRef(false)
   const hasRedirectedRef = useRef(false)
   const isGoogleAuthEnabled = env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED
   const callbackURL = useMemo(() => {
@@ -52,6 +54,13 @@ export function SignInForm() {
       onChange: loginFormSchema,
     },
     onSubmit: async ({ value }) => {
+      if (isEmailSignInPendingRef.current || hasRedirectedRef.current) {
+        return
+      }
+
+      isEmailSignInPendingRef.current = true
+      setIsEmailSignInPending(true)
+
       const result = await authClient.signIn
         .email({
           email: value.email,
@@ -61,6 +70,8 @@ export function SignInForm() {
         .catch(() => null)
 
       if (!result) {
+        isEmailSignInPendingRef.current = false
+        setIsEmailSignInPending(false)
         toast.error(
           "Unable to reach the auth server. Please try again in a moment."
         )
@@ -68,13 +79,15 @@ export function SignInForm() {
       }
 
       if (result.error) {
+        isEmailSignInPendingRef.current = false
+        setIsEmailSignInPending(false)
         toast.error(getAuthErrorMessage(result.error))
         return
       }
 
       toast.success("Signed in successfully.")
       hasRedirectedRef.current = true
-      router.push("/")
+      router.replace("/")
     },
   })
 
@@ -86,6 +99,10 @@ export function SignInForm() {
   }, [router, session])
 
   const handleGoogleSignIn = async () => {
+    if (isSocialSignInPending || hasRedirectedRef.current) {
+      return
+    }
+
     setIsSocialSignInPending(true)
 
     const result = await authClient.signIn
@@ -129,7 +146,11 @@ export function SignInForm() {
         <>
           <Button
             className="h-12 w-full font-semibold text-base shadow-sm transition-all hover:bg-muted/50 hover:shadow-md active:scale-[0.98]"
-            disabled={isSocialSignInPending || form.state.isSubmitting}
+            disabled={
+              isEmailSignInPending ||
+              isSocialSignInPending ||
+              form.state.isSubmitting
+            }
             onClick={handleGoogleSignIn}
             type="button"
             variant="outline"
@@ -224,10 +245,16 @@ export function SignInForm() {
 
         <Button
           className="h-11 w-full font-semibold"
-          disabled={form.state.isSubmitting || isSocialSignInPending}
+          disabled={
+            isEmailSignInPending ||
+            form.state.isSubmitting ||
+            isSocialSignInPending
+          }
           type="submit"
         >
-          {form.state.isSubmitting ? "Signing in..." : "Sign in"}
+          {isEmailSignInPending || form.state.isSubmitting
+            ? "Signing in..."
+            : "Sign in"}
         </Button>
       </form>
 
