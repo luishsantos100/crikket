@@ -9,7 +9,7 @@ import { Input } from "@crikket/ui/components/ui/input"
 import { useForm } from "@tanstack/react-form"
 import Link from "next/link"
 import { useRouter } from "nextjs-toploader/app"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { toast } from "sonner"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { AUTH_MIN_PASSWORD_LENGTH, getAuthErrorMessage } from "@/lib/auth"
@@ -18,6 +18,7 @@ import { registerFormSchema } from "@/lib/schema/auth"
 export function SignUpForm() {
   const router = useRouter()
   const { data: session, isPending } = authClient.useSession()
+  const hasRedirectedRef = useRef(false)
 
   const form = useForm({
     defaultValues: {
@@ -51,18 +52,21 @@ export function SignUpForm() {
 
       if (result.data?.token) {
         toast.success("Account created successfully.")
-        router.push("/")
+        hasRedirectedRef.current = true
+        router.replace("/onboarding")
         return
       }
 
       toast.success("Account created. Sign in to continue.")
+      hasRedirectedRef.current = true
       router.push(`/login?email=${encodeURIComponent(value.email)}`)
     },
   })
 
   useEffect(() => {
-    if (session) {
-      router.replace("/")
+    if (session && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true
+      router.replace("/onboarding")
     }
   }, [router, session])
 

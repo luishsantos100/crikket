@@ -11,7 +11,7 @@ import { useForm } from "@tanstack/react-form"
 import Link from "next/link"
 import { useRouter } from "nextjs-toploader/app"
 import { parseAsString, useQueryState } from "nuqs"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { getAuthErrorMessage } from "@/lib/auth"
@@ -26,6 +26,7 @@ export function SignInForm() {
   )
   const { data: session, isPending } = authClient.useSession()
   const [isSocialSignInPending, setIsSocialSignInPending] = useState(false)
+  const hasRedirectedRef = useRef(false)
   const isGoogleAuthEnabled = env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED
   const callbackURL = useMemo(() => {
     try {
@@ -72,12 +73,14 @@ export function SignInForm() {
       }
 
       toast.success("Signed in successfully.")
+      hasRedirectedRef.current = true
       router.push("/")
     },
   })
 
   useEffect(() => {
-    if (session) {
+    if (session && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true
       router.replace("/")
     }
   }, [router, session])
